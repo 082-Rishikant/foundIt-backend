@@ -1,0 +1,15 @@
+{
+  "name": "found-it",
+  "version": "1.0.0",
+  "description": "foundIt-Do you got any other's lost thing upload here Or if you lost something search here",
+  "main": "index.js",
+  "scripts": {
+    "test": "echo \"Error: no test specified\" && exit 1"
+  },
+  "author": "Rishikant Patel",
+  "license": "ISC",
+  "dependencies": {
+    "express": "^4.17.3",
+    "mongoose": "^6.2.4"
+  }
+}
