@@ -1,7 +1,11 @@
 const mongoose=require('mongoose');
-const {schema}=mongoose;
+const {Schema}=mongoose;
 
-const itemSchema=new schema({
+const itemSchema=new Schema({
+  user:{
+    type:mongoose.Schema.Types.ObjectId,
+    ref:'user'
+  },
   name:{
     type:String,
     required:true
@@ -17,9 +21,12 @@ const itemSchema=new schema({
     type:String,
     required:true
   },
-  // image:{
-
-  // }
+  description:{
+    type:String
+  },
+  image:{
+    type:String,
+  }
 });
 
 module.exports=mongoose.model('item', itemSchema);

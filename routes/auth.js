@@ -7,6 +7,7 @@ const router = express.Router();
 const bcrypt = require('bcryptjs');
 const fetchuser=require('../middlewares/fetchuser');
 
+// Json Web Token*********
 const jwt = require('jsonwebtoken'); // Used for generate tokens for security purpose and we will send this token to loggedin user to verify in future that current user loggedin or not
 require('dotenv').config();
 const JWT_secret=process.env.JWT_SECRET_KEY;
