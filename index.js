@@ -2,14 +2,19 @@ const express = require('express');
 const connectToMongo=require('./db');
 const cors=require('cors');
 
+const app = express();
+// const port=5000;
+
+const bodyParser = require('body-parser');
+app.use(bodyParser.urlencoded({ extended: false }));
+app.use(bodyParser.json());
+
 // Port Number using environmental variables
 require('dotenv').config();
 const port=process.env.PORT;
 
 connectToMongo();
 
-const app = express();
-// const port=5000;
 
 app.use(express.json());
 app.use(cors());

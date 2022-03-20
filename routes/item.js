@@ -2,6 +2,7 @@ const express = require('express');
 const Item = require('../models/Item');
 const { body, validationResult } = require('express-validator');
 const router = express.Router();
+
 const fetchuser = require('../middlewares/fetchuser');
 // const upload = require("../middlewares/upload_image_middleware");
 
@@ -35,7 +36,7 @@ router.post('/uploaditem', [
   body('place').isLength({ min: 3 }),
   fetchuser
 ],
-// upload,
+  // upload,
   async (req, res, next) => {
     let success = false;
 
@@ -47,21 +48,25 @@ router.post('/uploaditem', [
       return res.status(500).json({ errors: errors.array() });
     }
 
-    // create an new item using Item model
-    const item = new Item({ 
-      user: req.user_id, 
-      name:req.body.name, 
-      type:req.body.type, 
-      date:req.body.date, 
-      place:req.body.place, 
-      description:req.body.description
-    });
-    success = true;
+    try {
+      // create an new item using Item model
+      const item = new Item({
+        user: req.user_id,
+        name: req.body.name,
+        type: req.body.type,
+        date: req.body.date,
+        place: req.body.place,
+        description: req.body.description
+      });
+      success = true;
 
-    // Now save the item to mongodb
-    const savedItem=await item.save();
+      // Now save the item to mongodb
+      const savedItem = await item.save();
 
-    res.send({ success, savedItem });
+      res.send({ success, savedItem });
+    } catch (error) {
+      res.status(500).send({ error: error.message });
+    }
   });
 
 
