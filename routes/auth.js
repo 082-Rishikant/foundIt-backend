@@ -20,11 +20,13 @@ router.post('/createuser', [
   body('mobile_no').isLength({ min: 10 }),
 ], async (req, res) => {
   let success=false;
+
   //check for validaion errors
   const errors = validationResult(req);
   if (!errors.isEmpty()) {
     return res.status(500).json({ errors: errors.array() });
   }
+  
   // Try block starts from here
   try {
     // check whether user with same email id exist

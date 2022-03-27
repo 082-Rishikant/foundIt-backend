@@ -24,8 +24,9 @@ const itemSchema=new Schema({
   description:{
     type:String
   },
-  image:{
+  image_name:{
     type:String,
+    required:true
   }
 });
 
