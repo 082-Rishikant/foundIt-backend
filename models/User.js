@@ -17,6 +17,14 @@ const Userschema = new Schema({
   },
   mobile_no:{
     type:String,
+    required:true,
+    unique:true
+  },
+  user_image:{
+    type:String
+  },
+  department:{
+    type:String,
     required:true
   },
   date:{

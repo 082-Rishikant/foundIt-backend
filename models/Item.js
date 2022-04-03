@@ -17,6 +17,15 @@ const itemSchema=new Schema({
     type:Date,
     default:Date.now
   },
+  year:{
+    type:String
+  },
+  month:{
+    type:String
+  },
+  day:{
+    type:String
+  },
   place:{
     type:String,
     required:true
