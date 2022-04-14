@@ -120,13 +120,13 @@ router.get('/searchItem',
     try {
       // Destructure all the searching terms
       const { name, place, date, type } = req.body;
-      const d = new Date(date);
-      const year=d.getFullYear();
-      const month=d.getMonth()+1;
-      const day=d.getDate();
+      // const d = new Date(date);
+      // const year=d.getFullYear();
+      // const month=d.getMonth()+1;
+      // const day=d.getDate();
 
       // Fetch all items those matches
-      let items_list = await Item.find({$or:[{ name: name, type: type, year:year, month:month, day:day}]}).exec();
+      let items_list = await Item.find({$or:[{ name: name, type: type, place:place}]}).exec();
       
       // update them with user details
       for (var rep = 0; rep < items_list.length; rep++) {
