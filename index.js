@@ -7,6 +7,7 @@ const app = express();
 // Port Number using environmental variables
 require('dotenv').config();
 const port=process.env.PORT;
+// const port=5000;
 
 connectToMongo();
 

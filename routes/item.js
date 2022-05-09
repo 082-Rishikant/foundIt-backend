@@ -1,9 +1,9 @@
 const express = require('express');
 const router = express.Router();
 const multer = require("multer");
-// const path = require('path');
 const { body, validationResult } = require('express-validator');
 const fs = require("fs");
+// const path = require('path');
 
 // ***Defined by me***
 const Item = require('../models/Item');
@@ -15,8 +15,6 @@ const jwt = require('jsonwebtoken'); // Used for generate tokens for security pu
 require('dotenv').config();
 const JWT_secret = process.env.JWT_SECRET_KEY;
 
-// // define a default path to store the image on local storage
-// router.use(express.static(__dirname+"./public/"));
 
 
 // Router - 1 Code starts from here*****************************

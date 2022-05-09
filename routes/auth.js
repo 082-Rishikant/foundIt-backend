@@ -8,12 +8,15 @@ const bcrypt = require('bcryptjs');
 const fetchuser = require('../middlewares/fetchuser');
 const multer = require("multer");
 const fs = require("fs");
+// const path = require('path');
 
 // Json Web Token*********
 const jwt = require('jsonwebtoken'); // Used for generate tokens for security purpose and we will send this token to loggedin user to verify in future that current user loggedin or not
 require('dotenv').config();
 const JWT_secret = process.env.JWT_SECRET_KEY;
 
+// // define a default path to store the image on local storage
+// router.use(express.static(__dirname+"./public/"));
 
 // Router - 1 Code starts from here*****************************
 
@@ -46,7 +49,6 @@ router.post('/createuser',
     body('mobile_no').isLength({min:10, max:10}),
     body('department').isLength({ min: 3 }),
   ], async (req, res) => {
-    let success = false;
 
     //check for validaion errors
     const errors = validationResult(req);
@@ -55,12 +57,12 @@ router.post('/createuser',
       if (req.file) {
         fs.unlink(req.file.path, (err) => {
           if (err) {
-            return res.status(500).json({ from: "delete a just stored file when textfield is not valid", errors: err });
+            return res.status(500).json({success:false, message: "delete a just stored file when textfield is not valid", errors: err });
           }
         })
       }
 
-      return res.status(500).json({ errors: errors.array() });
+      return res.status(501).json({success:false,  message: errors.array() });
     }
 
     // Try block starts from here
@@ -79,12 +81,12 @@ router.post('/createuser',
         if (req.file) {
           fs.unlink(req.file.path, (err) => {
             if (err) {
-              return res.status(500).json({ from: "delete a just stored file when user already exist", errors: err });
+              return res.status(502).json({success:false, message: "delete a just stored file when user already exist", errors: err });
             }
           })
         }
 
-        return res.status(500).json({ success, error: "The user with this email or mobile number already exist" });
+        return res.status(503).json({ success:false, message: "The user with this email or mobile number already exist" });
       }
 
       //hashing of password
@@ -109,22 +111,23 @@ router.post('/createuser',
       const auth_token = jwt.sign(data, JWT_secret);
 
       // Now set this flag to true and send with the user data
-      success = true;
-      res.json({ success, auth_token });
+      res.json({ success:true, auth_token });
 
     } catch (error) {
       // first delete the saved image
       if (req.file) {
         fs.unlink(req.file.path, (err) => {
           if (err) {
-            return res.status(500).json({ from: "delete a just stored file when user already exist", errors: err });
+            return res.status(504).json({success:false, message: "delete a just stored file when user already exist", errors: err });
           }
         })
       }
 
-      res.status(500).send({ error: error.message });
+      return res.status(505).json({success:false, message: error.message });
     }
   })
+
+
 
 
 // Router 2) - Login a user using POST:'/api/auth/loginUser' - No login required
@@ -132,11 +135,10 @@ router.post('/loginUser', [
   body('email', 'Enter a valid email').isEmail(),
   body('password', 'Password length should be enough').isLength({ min: 5 })
 ], async (req, res) => {
-  let success = false;
   //check for validaion errors
   const errors = validationResult(req);
   if (!errors.isEmpty()) {
-    return res.status(500).json({ errors: errors.array() });
+    return res.status(506).json({success:false, message: errors.array() });
   }
 
   try {
@@ -146,15 +148,14 @@ router.post('/loginUser', [
     // Check whether user with this email is in mongoDB or not
     let user = await User.findOne({ email: email });
     if (!user) {
-      res.status(501).json({ success, error: "Please enter valid credentials" });
+      res.status(507).json({ success:false, message: "Please enter valid credentials" });
       return;
     }
 
     // if User exist then compare the passwords
     const comparePaswd = await bcrypt.compare(password, user.password);
     if (!comparePaswd) {
-      res.status(500).json({ success, error: "Enter the valid password" });
-      return;
+      return res.status(508).json({ success:false, message: "Enter the valid password" });
     }
 
     // returning user id in Token
@@ -163,11 +164,10 @@ router.post('/loginUser', [
     const auth_token = jwt.sign(data, JWT_secret);
 
     // if password a also is same then send the flag=true with user data
-    success = true;
-    res.json({ success, auth_token });
+    res.json({ success:true, auth_token });
 
   } catch (error) {
-    res.status(500).json({ error: error.message });
+    res.status(509).json({success:false, message: error.message });
   }
 
 })
