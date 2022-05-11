@@ -95,16 +95,16 @@ router.post('/uploaditem',
   });
 
 
-// Router 2) - fetch all Items of a user using POST:'/api/item/fetchitems' | login required
-router.post('/fetchitems',
+// Router 2) - fetch all Items of a user using GET:'/api/item/fetchitems' | login required
+router.get('/fetchitems',
   fetchuser,
   async (req, res, next) => {
     try {
       // fetch all items of current user from DB with the help of user_id
       const user_id = req.user_id;
-      let items_list = await Item.find({ user: user_id }).exec();
+      let items_list = await Item.find({ user: user_id });
 
-      res.send({ items_list });
+      res.json(items_list);
     } catch (error) {
       res.status(500).send({ error: error.message });
     }
