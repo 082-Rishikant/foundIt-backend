@@ -62,7 +62,7 @@ router.post('/createuser',
         })
       }
 
-      return res.status(501).json({success:false,  message: errors.array() });
+      return res.status(501).json({success:false, message:"Enter the valid credentials",  error: errors.array() });
     }
 
     // Try block starts from here

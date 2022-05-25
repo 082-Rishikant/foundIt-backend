@@ -17,8 +17,7 @@ const JWT_secret = process.env.JWT_SECRET_KEY;
 
 
 
-// Router - 1 Code starts from here*****************************
-// Router 1) - Upload an Item using POST:'/api/item/uploaditem' | login required
+// Router- 1 Upload an Item using POST:'/api/item/uploaditem' | login required**********
 
 // ***multer function for middleware***
 const storage = multer.diskStorage({
@@ -49,17 +48,16 @@ router.post('/uploaditem',
     body('place', 'Enter a valid item name').isLength({ min: 2 })
   ],
   async (req, res, next) => {
-    let success = false;
 
     //check for validaion errors
     const errors = validationResult(req);
     if (!errors.isEmpty()) {
       fs.unlink(req.file.path, (err) => {
         if (err) {
-          return res.status(500).json({ from: "delete a just stored file when textfield is not valid", errors: err });
+          return res.status(501).json({ success:false, message: "delete a just stored file when textfield is not valid", errors: err });
         }
       })
-      return res.status(500).json({ errors: errors.array() });
+      return res.status(502).json({ success:false, message:"Some errors in creds validation", errors: errors.array() });
     }
 
     try {
@@ -83,14 +81,12 @@ router.post('/uploaditem',
         description: req.body.description,
         image_name: image_name
       });
-      success = true;
-
       // Now save the item to mongodb
       const savedItem = await item.save();
 
-      res.send({ success, savedItem });
+      res.send({ success:true, savedItem });
     } catch (error) {
-      res.status(500).send({ error: error.message });
+      return res.status(503).send({success:false, message:"Catch section",  error: error.message });
     }
   });
 
@@ -111,12 +107,11 @@ router.get('/fetchitems',
   });
 
 
-// Router 3) - Search Item GET:'/api/item/searchItem' | login required
-router.get('/searchItem',
-  fetchuser,
-  async (req, res, next) => {
+// Router 3) - Search Item POST:'/api/item/searchItem' | login required
+router.post('/searchItem',
+  async (req, res) => {
     try {
-      // Destructure all the searching terms
+      // ****Destructure all the searching terms****
       const { name, place, date, type } = req.body;
       // const d = new Date(date);
       // const year=d.getFullYear();
@@ -124,7 +119,7 @@ router.get('/searchItem',
       // const day=d.getDate();
 
       // Fetch all items those matches
-      let items_list = await Item.find({$or:[{ name: name, type: type, place:place}]}).exec();
+      let items_list = await Item.find({$or:[{ name: name, type: type, place:place}]});
       
       // update them with user details
       for (var rep = 0; rep < items_list.length; rep++) {
@@ -133,10 +128,34 @@ router.get('/searchItem',
         items_list[rep].set('user', uploader_user);
       }
 
-      res.send({ items_list });
+      res.send({success:true, items_list });
     } catch (error) {
-      res.status(500).send({ error: error.message });
+      res.status(500).send({success:false, message: error.message });
     }
   });
+
+
+// Router 4: Delete an existing Item using:DELETE   '/api/item/deleteItem:id'   Login required;
+router.delete('/deleteItem/:id', fetchuser, async (req, res) => {
+  try {
+    // checking whether item exist or not, If find then delete
+    let item = await Item.findById(req.params.id);
+    if (!item) {
+      return res.status(400).send({success:false, message:"Item not found that you want to delete"});
+    }
+
+    // checking whether user owns this item or not
+    if (item.user.toString() !== req.user.id) {
+      return res.status(401).send({success:false, message:"sorry!! You are not allowed to delete this item"});
+    }
+    // finaly Deleting the existing item and item image
+    item = await Item.findByIdAndDelete(req.params.id);
+    res.json({success:true,message:"Item deleted successfully",item:item});
+  } catch (error) {
+    console.error(error.message);
+    res.status(402).send({success:false, message:error.message});
+  }
+})
+
 
 module.exports = router;
