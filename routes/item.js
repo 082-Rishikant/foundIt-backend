@@ -145,15 +145,21 @@ router.delete('/deleteItem/:id', fetchuser, async (req, res) => {
     }
 
     // checking whether user owns this item or not
-    if (item.user.toString() !== req.user.id) {
+    if (item.user.toString() !== req.user_id) {
       return res.status(401).send({success:false, message:"sorry!! You are not allowed to delete this item"});
     }
-    // finaly Deleting the existing item and item image
+    // Finaly deleting Image**
+    fs.unlink(`./public/item_Images/${item.image_name}`, (err) => {
+      if (err) {
+        return res.status(501).json({ success:false, message2: "sorry! Not able to delete a image", message: err });
+      }
+    })
+    // finaly Deleting item**
     item = await Item.findByIdAndDelete(req.params.id);
     res.json({success:true,message:"Item deleted successfully",item:item});
   } catch (error) {
     console.error(error.message);
-    res.status(402).send({success:false, message:error.message});
+    res.status(402).send({success:false, message:error.message, message2:"catch"});
   }
 })
 
