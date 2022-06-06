@@ -40,7 +40,9 @@ router.post('/uploaditem',
   [
     // validation rules for input
     body('name', 'Enter a valid item name').isLength({ min: 2 }),
-    body('place', 'Enter a valid item name').isLength({ min: 2 })
+    body('place', 'Enter a valid item name').isLength({ min: 2 }),
+    body('type', 'Enter a valid item type').isLength({ min: 2 }),
+    body('status', 'Enter a valid status').isLength({ min: 4 })
   ],
   async (req, res, next) => {
 
@@ -60,7 +62,7 @@ router.post('/uploaditem',
       const image_name = req.file.filename;
 
       // create an new item using Item model
-      let date = new Date();
+      let date = Date.now;
       if (req.body.date) {
         date = new Date(req.body.date);
       }
@@ -69,12 +71,11 @@ router.post('/uploaditem',
         name: req.body.name,
         type: req.body.type,
         date: date,
-        day: date.getDate(),
-        month: date.getMonth() + 1,
-        year: date.getFullYear(),
         place: req.body.place,
         description: req.body.description,
-        image_name: image_name
+        image_name: image_name,
+        user_name: req.body.user_name,
+        status:req.body.status
       });
       // Now save the item to mongodb
       const savedItem = await item.save();
@@ -94,8 +95,7 @@ router.get('/fetchitems',
       // fetch all items of current user from DB with the help of user_id
       const user_id = req.user_id;
       let items_list = await Item.find({ user: user_id });
-
-      res.json(items_list);
+      res.json({success:true, items_list});
     } catch (error) {
       res.status(500).send({ error: error.message });
     }
@@ -107,21 +107,11 @@ router.post('/searchItem',
   async (req, res) => {
     try {
       // ****Destructure all the searching terms****
-      const { name, place, date, type } = req.body;
-      // const d = new Date(date);
-      // const year=d.getFullYear();
-      // const month=d.getMonth()+1;
-      // const day=d.getDate();
+      const { name, place, type, date } = req.body;
+      const ndate=new Date(date);
 
       // Fetch all items those matches
-      let items_list = await Item.find({ $or: [{ name: name, type: type, place: place }] });
-
-      // update them with user details
-      for (var rep = 0; rep < items_list.length; rep++) {
-        let user_id = items_list[rep].user;
-        let uploader_user = await User.findById(user_id).select("name mobile_no user_image department");
-        items_list[rep].set('user', uploader_user);
-      }
+      let items_list = await Item.find({ $or: [{ name: name, type: type, place: place, date: ndate }] });
 
       res.send({ success: true, items_list });
     } catch (error) {
@@ -189,11 +179,9 @@ router.put('/updateItem/:id',
       if (type) newItem.type = type;
       if (place) newItem.place = place;
       if (date){
-        ndate = new Date(date);
-        newItem.date = ndate;
-        newItem.day = ndate.getDate();
-        newItem.month = ndate.getMonth() + 1;
-        newItem.year = ndate.getFullYear();
+        newItem.date = date;
+      }else{
+        newItem.date=Date.now;
       }
       if (description) newItem.description = description;
       if (image_name) newItem.image_name = image_name;

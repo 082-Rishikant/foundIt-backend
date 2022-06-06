@@ -18,7 +18,7 @@ app.use(cors());
 app.use('/api/auth', require('./routes/auth'));
 app.use('/api/item', require('./routes/item'));
 app.use("/item-img", express.static(__dirname+'/public/item_images'));
-app.use("/user-img", express.static(__dirname+'/public/item_images'));
+app.use("/user-img", express.static(__dirname+'/public/user_images'));
 app.listen(port, ()=>{
   console.log(`App is running on the port ${port}`);
 })

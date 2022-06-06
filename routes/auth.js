@@ -48,6 +48,7 @@ router.post('/createuser',
     body('password').isLength({ min: 5 }),
     body('mobile_no').isLength({min:10, max:10}),
     body('department').isLength({ min: 3 }),
+    body('gender').isLength({ min: 4 }),
   ], async (req, res) => {
 
     //check for validaion errors
@@ -101,7 +102,8 @@ router.post('/createuser',
           password: securePassword,
           mobile_no: req.body.mobile_no,
           user_image: image_name,
-          department: req.body.department
+          department: req.body.department,
+          gender:req.body.gender
         }
       )
 
@@ -126,9 +128,6 @@ router.post('/createuser',
       return res.status(505).json({success:false, message: error.message });
     }
   })
-
-
-
 
 // Router 2) - Login a user using POST:'/api/auth/loginUser' - No login required
 router.post('/loginUser', [
@@ -178,6 +177,16 @@ router.post('/getuser', fetchuser, async (req, res) => {
   const user_id = req.user_id;  // this is the user id that we set at the time of generating web token
   const user_data = await User.findById(user_id).select("-password");//except password
   res.send({ user_data });
+})
+
+// Route:4 - Get User details By using Id:POST.  "/api/auth/getUserById/:id".  Login required
+router.post('/getUserById/:id', fetchuser, async (req, res) => {
+  try {
+    const uploader = await User.findById(req.params.id).select("-password");//except password
+    res.send({success:true, uploader });
+  } catch (error) {
+    res.status(509).json({success:false, message: error.message , message2:"Catch Section"});
+  }
 })
 
 module.exports = router;

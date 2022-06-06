@@ -6,6 +6,10 @@ const itemSchema=new Schema({
     type:mongoose.Schema.Types.ObjectId,
     ref:'user'
   },
+  user_name:{
+    type:String,
+    required:true
+  },
   name:{
     type:String,
     required:true
@@ -17,15 +21,6 @@ const itemSchema=new Schema({
     type:Date,
     default:Date.now
   },
-  year:{
-    type:String
-  },
-  month:{
-    type:String
-  },
-  day:{
-    type:String
-  },
   place:{
     type:String,
     required:true
@@ -34,6 +29,14 @@ const itemSchema=new Schema({
     type:String
   },
   image_name:{
+    type:String,
+    required:true
+  },
+  is_reported:{
+    type:Boolean,
+    default:false
+  },
+  status:{
     type:String,
     required:true
   }

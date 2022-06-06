@@ -30,6 +30,10 @@ const Userschema = new Schema({
   date:{
     type:Date,
     default:Date.now
+  },
+  gender:{
+    type:String,
+    required:true
   }
 });
 
