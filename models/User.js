@@ -1,5 +1,6 @@
 const mongoose=require('mongoose');
 const { Schema } = mongoose;
+const {roles, userstatus}=require('../roles');
 
 const Userschema = new Schema({
   name:  {
@@ -34,6 +35,14 @@ const Userschema = new Schema({
   gender:{
     type:String,
     required:true
+  },
+  role:{
+    type:String,
+    default:roles.CLIENT
+  },
+  status:{
+    type:String,
+    default:userstatus.ACTIVE
   }
 });
 

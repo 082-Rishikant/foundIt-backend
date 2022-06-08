@@ -8,6 +8,7 @@ const bcrypt = require('bcryptjs');
 const fetchuser = require('../middlewares/fetchuser');
 const multer = require("multer");
 const fs = require("fs");
+const {roles}=require('../roles');
 // const path = require('path');
 
 // Json Web Token*********
@@ -94,6 +95,12 @@ router.post('/createuser',
       const salt = bcrypt.genSaltSync(10);
       const securePassword = bcrypt.hashSync(req.body.password, salt);
 
+      // SetRole
+      let role=roles.CLIENT;
+      if(req.body.email===process.env.ADMIN_EMAIL){
+        role=roles.ADMIN;
+      }
+
       // Now Create a new User in mongoDB
       user = await User.create(
         {
@@ -103,7 +110,8 @@ router.post('/createuser',
           mobile_no: req.body.mobile_no,
           user_image: image_name,
           department: req.body.department,
-          gender:req.body.gender
+          gender:req.body.gender,
+          role:role
         }
       )
 
@@ -171,12 +179,11 @@ router.post('/loginUser', [
 
 })
 
-
 // Route:3 - Get Loggedin User details using:POST  "/api/auth/getuser"  Login required
 router.post('/getuser', fetchuser, async (req, res) => {
   const user_id = req.user_id;  // this is the user id that we set at the time of generating web token
   const user_data = await User.findById(user_id).select("-password");//except password
-  res.send({ user_data });
+  res.send({success:true,  user_data:user_data });
 })
 
 // Route:4 - Get User details By using Id:POST.  "/api/auth/getUserById/:id".  Login required
@@ -188,5 +195,13 @@ router.post('/getUserById/:id', fetchuser, async (req, res) => {
     res.status(509).json({success:false, message: error.message , message2:"Catch Section"});
   }
 })
+
+// Router:5 - getAll Users By Admin
+router.get('/getAllUsers', fetchuser, async(req, res)=>{
+  try{
+  } catch (error) {
+    res.status(509).json({success:false, message: error.message , message2:"Catch Section"});
+  }
+});
 
 module.exports = router;
