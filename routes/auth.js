@@ -95,7 +95,6 @@ router.post('/createuser',
       const salt = bcrypt.genSaltSync(10);
       const securePassword = bcrypt.hashSync(req.body.password, salt);
 
-      // SetRole
       let role=roles.CLIENT;
       if(req.body.email===process.env.ADMIN_EMAIL){
         role=roles.ADMIN;
@@ -159,6 +158,10 @@ router.post('/loginUser', [
       return;
     }
 
+    if(user.isBlocked){
+      return res.json({success:false, message:"You are blocked by admin"});
+    }
+
     // if User exist then compare the passwords
     const comparePaswd = await bcrypt.compare(password, user.password);
     if (!comparePaswd) {
@@ -199,8 +202,32 @@ router.post('/getUserById/:id', fetchuser, async (req, res) => {
 // Router:5 - getAll Users By Admin
 router.get('/getAllUsers', fetchuser, async(req, res)=>{
   try{
+    const curr_user=await User.findById(req.user_id);
+    if(curr_user.role!==roles.ADMIN){
+      return res.status(401).send({success:false, message:"You are not allowed to access all users!!!!"
+      });
+    }
+    const users=await User.find().select("-password");
+    res.send({success:true, users:users});
   } catch (error) {
-    res.status(509).json({success:false, message: error.message , message2:"Catch Section"});
+    res.status(509).json({success:false, message: error.message , message2:"Can not fetch all users!!!"});
+  }
+});
+
+
+// Router:6 - Block A user by Admin only
+router.post('/blockAUser/:id', fetchuser, async(req, res)=>{
+  try{
+    const currUser=await User.findById(req.user_id).select("-password");
+    const usertoBlock=await User.findById(req.params.id).select("-password");
+    if(currUser.role===roles.CLIENT || usertoBlock.email===process.env.ADMIN_EMAIL){
+      return res.send({success:false, message:"You are not allowed to do So!!", from:"BlockAUser"});
+    }
+    const user=await User.updateOne({_id:req.params.id}, {$set:{"isBlocked":!usertoBlock.isBlocked}});
+    const updatedStatus=await User.findById(req.params.id).select("isBlocked");
+    res.json({success:true, result:user, newStatus:updatedStatus});
+  }catch (error) {
+    res.status(509).json({success:false, message: error.message , message2:"Can not Block user!!!"});
   }
 });
 

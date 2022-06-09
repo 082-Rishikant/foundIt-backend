@@ -33,7 +33,7 @@ const storage = multer.diskStorage({
 // ***multer middleware***
 const upload = multer({storage: storage, limits: {fileSize: 1024 * 1024 * 5}});
 
-
+// Router - 1 ADD and Item *******
 router.post('/uploaditem',
   fetchuser,
   upload.single('image'),
@@ -226,6 +226,22 @@ router.put('/updateItem/:id',
       res.status(500).send({success:false, message:error.message, message2:"Catch section"});
     }
   })
+
+
+// Router 6: getAllItems || Access to ADMIN Only || Login required
+router.get('/getAllItems', fetchuser, async (req, res)=>{
+  try{
+    const user=await User.findById(req.user_id).select("-password");
+    if(user.role!=="admin" || user.isBlocked){
+      return res.send({success:false, message:"You are not allowed to do so!!!", from:"getAllItems"});
+    }
+    const allitems=await Item.find();
+    res.send({success:true, allitems:allitems});
+  }catch (error) {
+    console.error(error.message);
+    res.status(402).send({ success: false, message: error.message, from: "getAllItems" });
+  }
+})
 
 
 module.exports = router;

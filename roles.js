@@ -2,9 +2,5 @@ module.exports={
   roles:{
     ADMIN:"admin",
     CLIENT:"client"
-  },
-  userstatus:{
-    ACTIVE:"active",
-    BLOCKED:"blocked"
   }
 };

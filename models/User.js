@@ -1,6 +1,6 @@
 const mongoose=require('mongoose');
 const { Schema } = mongoose;
-const {roles, userstatus}=require('../roles');
+const {roles}=require('../roles');
 
 const Userschema = new Schema({
   name:  {
@@ -38,11 +38,12 @@ const Userschema = new Schema({
   },
   role:{
     type:String,
+    enum:[roles.ADMIN, roles.CLIENT],
     default:roles.CLIENT
   },
-  status:{
-    type:String,
-    default:userstatus.ACTIVE
+  isBlocked:{
+    type:Boolean,
+    default:false
   }
 });
 
