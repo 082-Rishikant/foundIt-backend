@@ -2,18 +2,12 @@ const express = require('express');
 const router = express.Router();
 const multer = require("multer");
 const { body, validationResult } = require('express-validator');
-const fs = require("fs");
-// const path = require('path');
 
-// ***Defined by me***
 const Item = require('../models/Item');
 const User = require('../models/User');
 const fetchuser = require('../middlewares/fetchuser');
-
-// ***Json Web Token***
-const jwt = require('jsonwebtoken'); // Used for generate tokens for security purpose and we will send this token to loggedin user to verify in future that current user loggedin or not
+const deleteImage=require('../middlewares/deleteImage');
 require('dotenv').config();
-const JWT_secret = process.env.JWT_SECRET_KEY;
 
 
 
@@ -31,7 +25,7 @@ const storage = multer.diskStorage({
 })
 
 // ***multer middleware***
-const upload = multer({storage: storage, limits: {fileSize: 1024 * 1024 * 5}});
+const upload = multer({storage: storage, limits: {fileSize: 1024 * 1024 * 2}});
 
 // Router - 1 ADD and Item *******
 router.post('/uploaditem',
@@ -44,22 +38,17 @@ router.post('/uploaditem',
     body('type', 'Enter a valid item type').isLength({ min: 2 }),
     body('status', 'Enter a valid status').isLength({ min: 4 })
   ],
-  async (req, res, next) => {
-
-    //check for validaion errors
-    const errors = validationResult(req);
-    if (!errors.isEmpty()) {
-      fs.unlink(req.file.path, (err) => {
-        if (err) {
-          return res.status(501).json({ success: false, message: "delete a just stored file when textfield is not valid", errors: err });
-        }
-      })
-      return res.status(502).json({ success: false, message: "Some errors in creds validation", errors: errors.array() });
-    }
-
+  async (req, res) => {
     try {
+      //check for validaion errors
+      const errors = validationResult(req);
+      if (!errors.isEmpty()) {
+        deleteImage(req.file.path);
+        return res.status(502).json({ success: false, message: "Some errors in creds validation", errors: errors.array() });
+      }
       // fetch the image file name after execution of multer middleware
-      const image_name = req.file.filename;
+      let image_name="defaultimage"
+      if(req.file){ image_name = req.file.filename; }
 
       // create an new item using Item model
       let date = Date.now;
@@ -82,7 +71,8 @@ router.post('/uploaditem',
 
       res.send({ success: true, savedItem });
     } catch (error) {
-      return res.status(503).send({ success: false, message: "Catch section", error: error.message });
+      deleteImage(req.file.path);
+      return res.status(503).send({ success: false, from: "Catch section", message: error.message });
     }
   });
 
@@ -97,30 +87,11 @@ router.get('/fetchitems',
       let items_list = await Item.find({ user: user_id });
       res.json({success:true, items_list});
     } catch (error) {
-      res.status(500).send({ error: error.message });
+      res.status(500).send({success:false,  message: error.message });
     }
   });
 
-
-// Router 3) - Search Item POST:'/api/item/searchItem' | login required
-router.post('/searchItem',
-  async (req, res) => {
-    try {
-      // ****Destructure all the searching terms****
-      const { name, place, type, date } = req.body;
-      const ndate=new Date(date);
-
-      // Fetch all items those matches
-      let items_list = await Item.find({ $or: [{ name: name, type: type, place: place, date: ndate }] });
-
-      res.send({ success: true, items_list });
-    } catch (error) {
-      res.status(500).send({ success: false, message: error.message });
-    }
-  });
-
-
-// Router 4: Delete an existing Item using:DELETE   '/api/item/deleteItem:id'   Login required;
+// Router 3: Delete an existing Item using:DELETE   '/api/item/deleteItem:id'   Login required;
 router.delete('/deleteItem/:id', fetchuser, async (req, res) => {
   try {
     // checking whether item exist or not, If find then delete
@@ -134,22 +105,19 @@ router.delete('/deleteItem/:id', fetchuser, async (req, res) => {
       return res.status(401).send({ success: false, message: "sorry!! You are not allowed to delete this item" });
     }
     // Finaly deleting Image**
-    fs.unlink(`./public/item_Images/${item.image_name}`, (err) => {
-      if (err) {
-        return res.status(501).json({ success: false, message2: "sorry! Not able to delete a image", message: err });
-      }
-    })
+    let path=`./public/item_Images/${item.image_name}`;
+    deleteImage(path);
     // finaly Deleting item**
     item = await Item.findByIdAndDelete(req.params.id);
     res.json({ success: true, message: "Item deleted successfully", item: item });
   } catch (error) {
     console.error(error.message);
-    res.status(402).send({ success: false, message: error.message, message2: "catch" });
+    res.status(402).send({ success: false, message: error.message, from: "deleteItem | catch" });
   }
 })
 
 
-// Router 5: Update an existing Item using:PUT   '/api/item/updateItem/:id'   Login required;
+// Router 4: Update an existing Item using:PUT   '/api/item/updateItem/:id'   Login required;
 router.put('/updateItem/:id',
   fetchuser,
   upload.single('image'), [
@@ -158,18 +126,14 @@ router.put('/updateItem/:id',
   body('place', 'Enter a valid item name').isLength({ min: 2 })
 ],
   async (req, res, next) => {
-    //check for validaion errors
-    const errors = validationResult(req);
-    if (!errors.isEmpty()) {
-      fs.unlink(req.file.path, (err) => {
-        if (err) {
-          return res.status(501).json({ success: false, message: "delete a just stored file when textfield is not valid", errors: err });
-        }
-      })
-      return res.status(502).json({ success: false, message: "Some errors in creds validation", errors: errors.array() });
-    }
     
     try {
+      //check for validaion errors
+      const errors = validationResult(req);
+      if (!errors.isEmpty()) {  
+        if(req.file) deleteImage(req.file.path);
+        return res.status(502).json({ success: false, from: "creds validation", message: errors.array() });
+      }
       const { name, type, place, date, description } = req.body;
       const image_name = req.file.filename;
       
@@ -189,56 +153,35 @@ router.put('/updateItem/:id',
       // checking whether item exist or not, If exist then Update it
       let item = await Item.findById(req.params.id);
       if (!item) {
-        fs.unlink(req.file.path, (err) => {
-          if (err) {
-            return res.status(501).json({ success: false, message: "delete a just stored file when textfield is not valid", errors: err });
-          }
-        })
+        if(req.file) deleteImage(req.file.path);
         return res.status(404).send({ success: false, message: "Item not found to update" });
       }
 
       // checking whether user owns this Item or not
       if (item.user.toString() !== req.user_id) {
-        fs.unlink(req.file.path, (err) => {
-          if (err) {
-            return res.status(501).json({ success: false, message: "delete a just stored file when textfield is not valid", errors: err });
-          }
-        })
+        if(req.file) deleteImage(req.file.path);
         return res.status(401).send({ success: false, message: "You are not allowed to update this Item" });
       }
 
       // Finaly deleting Image**
-      fs.unlink(`./public/item_Images/${item.image_name}`, (err) => {
-        if (err) {
-          return res.status(501).json({ success: false, message2: "sorry! Not able to delete old image a image", message: err });
-        }
-      })
+      let path=`./public/item_Images/${item.image_name}`;
+      deleteImage(path);
 
       // Finaly updating in mongo DB**
       item = await Item.findByIdAndUpdate(req.params.id, { $set: newItem }, { new: true })
       res.json({success:true, item});
     } catch (error) {
-      fs.unlink(req.file.path, (err) => {
-        if (err) {
-          return res.status(501).json({ success: false, message: "delete a just stored file when textfield is not valid", errors: err });
-        }
-      })
-      res.status(500).send({success:false, message:error.message, message2:"Catch section"});
+      if(req.file) deleteImage(req.file.path);
+      res.status(500).send({success:false, message:error.message, from:"Catch section"});
     }
   })
 
-
-// Router 6: getAllItems || Access to ADMIN Only || Login required
+// Router 5: getAllItems || Access to ADMIN Only || Login required
 router.get('/getAllItems', fetchuser, async (req, res)=>{
   try{
-    const user=await User.findById(req.user_id).select("-password");
-    if(user.role!=="admin" || user.isBlocked){
-      return res.send({success:false, message:"You are not allowed to do so!!!", from:"getAllItems"});
-    }
     const allitems=await Item.find();
     res.send({success:true, allitems:allitems});
   }catch (error) {
-    console.error(error.message);
     res.status(402).send({ success: false, message: error.message, from: "getAllItems" });
   }
 })

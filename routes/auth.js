@@ -1,25 +1,19 @@
-// auth stands ---> for user Authentication like Signup first, Login first before accessing your data
-
+const crypto = require("crypto");
 const express = require('express');
+const Isadmin = require('../middlewares/Isadmin');
 const User = require('../models/User');
 const { body, validationResult } = require('express-validator');
 const router = express.Router();
 const bcrypt = require('bcryptjs');
 const fetchuser = require('../middlewares/fetchuser');
 const multer = require("multer");
-const fs = require("fs");
-const {roles}=require('../roles');
-// const path = require('path');
-
-// Json Web Token*********
-const jwt = require('jsonwebtoken'); // Used for generate tokens for security purpose and we will send this token to loggedin user to verify in future that current user loggedin or not
-require('dotenv').config();
+const { roles } = require('../roles');
+const sendEmail = require('../verification/Email');
+const Token = require('../models/Token');
+const jwt = require('jsonwebtoken'); 
+const deleteImage = require("../middlewares/deleteImage");
+// require('dotenv').config();
 const JWT_secret = process.env.JWT_SECRET_KEY;
-
-// // define a default path to store the image on local storage
-// router.use(express.static(__dirname+"./public/"));
-
-// Router - 1 Code starts from here*****************************
 
 // ***multer function for middleware***
 const storage = multer.diskStorage({
@@ -36,68 +30,56 @@ const storage = multer.diskStorage({
 const upload = multer({
   storage: storage,
   limits: {
-    fileSize: 1024 * 1024 * 5
+    fileSize: 1024 * 1024 * 2
   }
 });
 
-// Router 1) - create a user using POST:'/api/auth/createuser' No login required
+// Router 1.1) - create a user using POST:'/api/auth/createuser' No login required
 router.post('/createuser',
   upload.single('user_image'),
   [
-    body('name').isLength({ min: 3 }),
+    body('name').isLength({ min: 2 }),
     body('email').isEmail().contains("@nitt.edu"),
     body('password').isLength({ min: 5 }),
-    body('mobile_no').isLength({min:10, max:10}),
-    body('department').isLength({ min: 3 }),
+    body('mobile_no').isLength({ min: 10, max: 10 }),
+    body('department').isLength({ min: 2 }),
     body('gender').isLength({ min: 4 }),
   ], async (req, res) => {
-
-    //check for validaion errors
-    const errors = validationResult(req);
-    if (!errors.isEmpty()) {
-      // first delete the saved image
-      if (req.file) {
-        fs.unlink(req.file.path, (err) => {
-          if (err) {
-            return res.status(500).json({success:false, message: "delete a just stored file when textfield is not valid", errors: err });
-          }
-        })
-      }
-
-      return res.status(501).json({success:false, message:"Enter the valid credentials",  error: errors.array() });
-    }
-
     // Try block starts from here
     try {
+      //check for validaion errors
+      const errors = validationResult(req);
+      if (!errors.isEmpty()) {
+        deleteImage(req.file.path);
+        return res.status(501).json({ success: false, message: "Enter the valid credentials", error: errors.array() });
+      }
+
       // image name
-      let image_name = "default";
+      let image_name = "defaultImage";
       if (req.file) {
         image_name = req.file.filename;
       }
 
-
       // check whether user with same email id exist
-      let user = await User.findOne({$or:[{ email: req.body.email }, {mobile_no:req.body.mobile_no}]});
+      let user = await User.findOne({ $or: [{ email: req.body.email }, { mobile_no: req.body.mobile_no }] });
       if (user) {
-        // first delete the saved image
-        if (req.file) {
-          fs.unlink(req.file.path, (err) => {
-            if (err) {
-              return res.status(502).json({success:false, message: "delete a just stored file when user already exist", errors: err });
-            }
-          })
+        if(user.verified){
+          deleteImage(req.file.path);
+          return res.status(503).json({ success: false, message: "The user with this email or mobile number already exist" });
+        }else{
+          let path=`./public/user_Images/${user.user_image}`;
+          deleteImage(path);
+          let r=await User.deleteOne( {"_id": user.id});
         }
-
-        return res.status(503).json({ success:false, message: "The user with this email or mobile number already exist" });
       }
 
       //hashing of password
       const salt = bcrypt.genSaltSync(10);
       const securePassword = bcrypt.hashSync(req.body.password, salt);
 
-      let role=roles.CLIENT;
-      if(req.body.email===process.env.ADMIN_EMAIL){
-        role=roles.ADMIN;
+      let role = roles.CLIENT;
+      if (req.body.email === process.env.ADMIN_EMAIL) {
+        role = roles.ADMIN;
       }
 
       // Now Create a new User in mongoDB
@@ -109,63 +91,88 @@ router.post('/createuser',
           mobile_no: req.body.mobile_no,
           user_image: image_name,
           department: req.body.department,
-          gender:req.body.gender,
-          role:role
+          gender: req.body.gender,
+          role: role
         }
       )
 
+      // **** Saving Token for email verification purpose ****
+      let token = await new Token({
+        userId: user._id,
+        token: crypto.randomBytes(32).toString("hex"),
+      }).save();
+      Token.createIndex( { "expireAt": 1 }, { expireAfterSeconds: 360 } )
+      const v_link = `http://localhost:3000/verify/${user.id}/${token.token}`;
+      sendEmail(v_link, req.body.email);
+
+
       // Now using user id create a JWT token for security and authenticity
-      // So that we can check whether a user is loggedin or not or is it a registered user
       const data = { user: user.id };
       const auth_token = jwt.sign(data, JWT_secret);
 
       // Now set this flag to true and send with the user data
-      res.json({ success:true, auth_token });
+      res.json({ success: true, auth_token });
 
     } catch (error) {
       // first delete the saved image
-      if (req.file) {
-        fs.unlink(req.file.path, (err) => {
-          if (err) {
-            return res.status(504).json({success:false, message: "delete a just stored file when user already exist", errors: err });
-          }
-        })
-      }
-
-      return res.status(505).json({success:false, message: error.message });
+      deleteImage(req.file.path);
+      return res.status(505).json({ success: false, message: error.message, from:"Catch Section | Create User" });
     }
   })
+// Router -1.2 For Email verification***********
+router.get("/verify/:id/:token", async (req, res) => {
+  try {
+    const user = await User.findOne({ _id: req.params.id });
+    if(user.verified) return res.send({ success: true, message: "Email verified sucessfully" });
+    if (!user) return res.status(404).send({ success: false, message: "Your email not found in database" });
+
+    const token = await Token.findOne({
+      userId: user._id,
+      token: req.params.token,
+    });
+    if (!token) return res.status(401).send({ success: false, message: "Link has expired" });
+
+    await User.updateOne({ _id: req.params.id }, { $set: { verified: true } });
+    await Token.findByIdAndRemove(token._id);
+
+    res.send({ success: true, message: "Email verified sucessfully" });
+  } catch (error) {
+    res.status(404).send({ success: false, message: error.message, from: "Verify Email | Catch Section" });
+  }
+});
+
+
 
 // Router 2) - Login a user using POST:'/api/auth/loginUser' - No login required
 router.post('/loginUser', [
   body('email', 'Enter a valid email').isEmail(),
   body('password', 'Password length should be enough').isLength({ min: 5 })
 ], async (req, res) => {
-  //check for validaion errors
-  const errors = validationResult(req);
-  if (!errors.isEmpty()) {
-    return res.status(506).json({success:false, message: errors.array() });
-  }
-
+  
   try {
+    //check for validaion errors
+    const errors = validationResult(req);
+    if (!errors.isEmpty()) {
+      return res.status(506).json({ success: false, message: errors.array() });
+    }
     // Destructure the email and password from req body
     const { email, password } = req.body;
 
     // Check whether user with this email is in mongoDB or not
     let user = await User.findOne({ email: email });
     if (!user) {
-      res.status(507).json({ success:false, message: "Please enter valid credentials" });
+      res.status(507).json({ success: false, message: "User not found!!" });
       return;
     }
 
-    if(user.isBlocked){
-      return res.json({success:false, message:"You are blocked by admin"});
+    if (user.isBlocked || !(user.verified)) {
+      return res.json({ success: false, message: "Either You are blocked by admin or Email not verified", from: "Login User" });
     }
 
     // if User exist then compare the passwords
     const comparePaswd = await bcrypt.compare(password, user.password);
     if (!comparePaswd) {
-      return res.status(508).json({ success:false, message: "Enter the valid password" });
+      return res.status(508).json({ success: false, message: "Enter the valid password" });
     }
 
     // returning user id in Token
@@ -174,10 +181,10 @@ router.post('/loginUser', [
     const auth_token = jwt.sign(data, JWT_secret);
 
     // if password a also is same then send the flag=true with user data
-    res.json({ success:true, auth_token });
+    res.json({ success: true, auth_token });
 
   } catch (error) {
-    res.status(509).json({success:false, message: error.message });
+    res.status(509).json({ success: false, message: error.message });
   }
 
 })
@@ -186,48 +193,42 @@ router.post('/loginUser', [
 router.post('/getuser', fetchuser, async (req, res) => {
   const user_id = req.user_id;  // this is the user id that we set at the time of generating web token
   const user_data = await User.findById(user_id).select("-password");//except password
-  res.send({success:true,  user_data:user_data });
+  res.send({ success: true, user_data: user_data });
 })
 
 // Route:4 - Get User details By using Id:POST.  "/api/auth/getUserById/:id".  Login required
 router.post('/getUserById/:id', fetchuser, async (req, res) => {
   try {
     const uploader = await User.findById(req.params.id).select("-password");//except password
-    res.send({success:true, uploader });
+    res.send({ success: true, uploader });
   } catch (error) {
-    res.status(509).json({success:false, message: error.message , message2:"Catch Section"});
+    res.status(509).json({ success: false, message: error.message, message2: "Catch Section" });
   }
 })
 
-// Router:5 - getAll Users By Admin
-router.get('/getAllUsers', fetchuser, async(req, res)=>{
-  try{
-    const curr_user=await User.findById(req.user_id);
-    if(curr_user.role!==roles.ADMIN){
-      return res.status(401).send({success:false, message:"You are not allowed to access all users!!!!"
-      });
-    }
-    const users=await User.find().select("-password");
-    res.send({success:true, users:users});
+// ******* ADMIN AREA ************
+// Router:1 - getAll Users By Admin
+router.get('/getAllUsers', fetchuser, Isadmin, async (req, res) => {
+  try {
+    const curr_user = await User.findById(req.user_id);
+    const users = await User.find().select("-password");
+    res.send({ success: true, users: users });
   } catch (error) {
-    res.status(509).json({success:false, message: error.message , message2:"Can not fetch all users!!!"});
+    res.status(509).json({ success: false, message: error.message, message2: "Can not fetch all users!!!" });
   }
 });
 
 
-// Router:6 - Block A user by Admin only
-router.post('/blockAUser/:id', fetchuser, async(req, res)=>{
-  try{
-    const currUser=await User.findById(req.user_id).select("-password");
-    const usertoBlock=await User.findById(req.params.id).select("-password");
-    if(currUser.role===roles.CLIENT || usertoBlock.email===process.env.ADMIN_EMAIL){
-      return res.send({success:false, message:"You are not allowed to do So!!", from:"BlockAUser"});
-    }
-    const user=await User.updateOne({_id:req.params.id}, {$set:{"isBlocked":!usertoBlock.isBlocked}});
-    const updatedStatus=await User.findById(req.params.id).select("isBlocked");
-    res.json({success:true, result:user, newStatus:updatedStatus});
-  }catch (error) {
-    res.status(509).json({success:false, message: error.message , message2:"Can not Block user!!!"});
+// Router:2 - Block A user by Admin only
+router.post('/blockAUser/:id', fetchuser, Isadmin, async (req, res) => {
+  try {
+    const currUser = await User.findById(req.user_id).select("-password");
+    const usertoBlock = await User.findById(req.params.id).select("-password");
+    const user = await User.updateOne({ _id: req.params.id }, { $set: { "isBlocked": !usertoBlock.isBlocked } });
+    const updatedStatus = await User.findById(req.params.id).select("isBlocked");
+    res.json({ success: true, result: user, newStatus: updatedStatus });
+  } catch (error) {
+    res.status(509).json({ success: false, message: error.message, message2: "Can not Block user!!!" });
   }
 });
 

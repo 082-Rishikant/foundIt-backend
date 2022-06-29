@@ -44,6 +44,10 @@ const Userschema = new Schema({
   isBlocked:{
     type:Boolean,
     default:false
+  },
+  verified:{
+    type:Boolean,
+    default:false
   }
 });
 
