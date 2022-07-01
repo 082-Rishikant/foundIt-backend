@@ -176,13 +176,23 @@ router.put('/updateItem/:id',
     }
   })
 
-// Router 5: getAllItems || Access to ADMIN Only || Login required
+// Router 5: getAllItems || Login required
 router.get('/getAllItems', fetchuser, async (req, res)=>{
   try{
     const allitems=await Item.find();
     res.send({success:true, allitems:allitems});
   }catch (error) {
     res.status(402).send({ success: false, message: error.message, from: "getAllItems" });
+  }
+})
+
+// Router 6: getAItem || Login required
+router.get('/getAItem/:id', fetchuser, async (req, res)=>{
+  try{
+    const item=await Item.findById(req.params.id);
+    res.send({success:true, item:item});
+  }catch (error) {
+    res.status(402).send({ success: false, message: error.message, from: "getAItem" });
   }
 })
 

@@ -101,7 +101,7 @@ router.post('/createuser',
         userId: user._id,
         token: crypto.randomBytes(32).toString("hex"),
       }).save();
-      Token.createIndex( { "expireAt": 1 }, { expireAfterSeconds: 360 } )
+      // Token.createIndexes( { "expireAt": 1 }, { expireAfterSeconds: 360 } )
       const v_link = `http://localhost:3000/verify/${user.id}/${token.token}`;
       sendEmail(v_link, req.body.email);
 
