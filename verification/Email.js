@@ -31,7 +31,7 @@ const sendEmail = (v_link, email) => {
     },
   })
     .then(console.log)
-    .catch(console.error)
+    .catch((error)=>{console.log(error.message)});
 }
 
 
